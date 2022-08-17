@@ -13,35 +13,34 @@ import numpy as np
 import requests
 import lxml.html as lh
 import time
-englandUrl = 'https://www.espncricinfo.com/team/england-1/match-schedule-fixtures'
+england_url = 'https://www.espncricinfo.com/team/england-1/match-schedule-fixtures'
 
-page = requests.get(englandUrl)
+page = requests.get(england_url)
 content = page.content
 doc = lh.fromstring(content)
 
 #Finding the status of the game
 elements = doc.xpath("//div[@class='ds-px-4 ds-py-3']/a/div/div/div/div/span[@class='ds-text-tight-xs ds-font-bold ds-uppercase ds-leading-5']")
-matchStatus = elements[0].text_content()
+match_status = elements[0].text_content()
 
-#Check if the game is ongoing, possibly incomplete - need an exhaustive list
-validGameStates = ['Live','Stumps','Lunch','Tea','Innings break']
-liveMatch = False
-for state in validGameStates:
-    liveMatch = liveMatch or state == matchStatus
-    if liveMatch:
+valid_game_states = ['Live','Stumps','Lunch','Tea','Innings break']
+live_match = False
+for state in valid_game_states:
+    live_match = live_match or state == match_status
+    if live_match:
         break
-#Check if delayed, unsure if capitalised - need to check in rain delay
-liveMatch = liveMatch or 'delayed' in matchStatus or 'Delayed' in matchStatus
+# TODO: check which is needed during a rain delay
+live_match = live_match or 'delayed' in match_status or 'Delayed' in match_status
 
-if not(liveMatch):
+if not(live_match):
     print('England Men are not playing')
 else:
     #Find the URL of current game
     elements = doc.xpath("//div[@class='ds-px-4 ds-py-3']/a")
     url = 'https://www.espncricinfo.com/'+elements[0].attrib['href']
     
-    isBatting = False
-    firstTime = True
+    is_batting = False
+    first_time = True
     name = 'Stuart Broad'
     while True:
         page = requests.get(url)
@@ -56,23 +55,20 @@ else:
             batter2 = table[1].text_content().split('(')[0]
             batter2 = batter2.strip()
 
-            #Find out if batter
-            bob = table[1].text_content().split('(')[1]
-            bat = bob == 'lhb)' or bob== 'rhb)'
+            batter2_batter_or_bowler_type = table[1].text_content().split('(')[1]
+            batter2_is_batter = batter2_batter_or_bowler_type == 'lhb)' or batter2_batter_or_bowler_type== 'rhb)'
 
-            #Check if batsman has changed
-            wasBatting = isBatting
-            isBatting = batter1 == name or (batter2 == name and bat)
+            wasBatting = is_batting
+            is_batting = batter1 == name or (batter2 == name and batter2_is_batter)
 
-            #Output accordingly
-            if firstTime and isBatting:
+            if first_time and is_batting:
                 print(name, 'is batting')
-            elif firstTime and not(isBatting):
+            elif first_time and not(is_batting):
                 print(name, 'is not batting')
-            elif isBatting != wasBatting:
-                if isBatting:
+            elif is_batting != wasBatting:
+                if is_batting:
                     print(name, 'is now batting')
                 else:
                     print(name, 'is no longer batting')
-            firstTime = False
+            first_time = False
             time.sleep(5) #Dont DOS cricinfo
